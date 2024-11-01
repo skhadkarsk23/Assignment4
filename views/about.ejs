@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="/css/main.css" rel="stylesheet">
+    <title>About</title>
+  </head>
+<body class="bg-blue-400">
+    <%- include('partials/navbar', { page: "/about" }) %>
+
+    <div class="flex items-center justify-center mb-6">
+      <h1 class="text-3xl font-bold">About Me</h1>
+    </div>
+
+    <div class="w-full px-6">
+        <div class="hero-content flex-col lg:flex-row w-full">
+          <section class="hero bg-base-200 p-6 rounded-lg w-full">
+            <p class="mt-2 text-lg">
+              My name is Saurab Khadka, and I am currently enrolled in Computer Programming at Seneca College. In my free time, I love watching anime and movies, hanging out with friends, and sleeping. All about me and my Lego journey. Most of the time, I love building Lego sets, and I am currently enrolled in a computer course to improve my web development skills at Seneca College.
+            </p>
+          </section>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10 w-full">
+            <div class="w-full">
+              <img src="/images/anime1.jpg" alt="Anime Image" class="w-100 h-96 object-cover rounded-lg">
+            </div>
+            <div class="flex items-center">
+              <p class="text-xl font-medium">I love watching anime. One Piece is my all-time favorite.</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10 w-full">
+            <div class="w-full">
+              <img src="/images/avenger.jpeg" alt="Avenger Lego Image" class="w-full h-96 object-cover rounded-lg">
+            </div>
+            <div class="flex items-center">
+              <p class="text-xl font-medium">Lego sets are amazing, but I especially love the Avenger Lego sets.</p>
+            </div>
+          </div>
+          
+        </div>
+    </div>
+</body>
+</html>
