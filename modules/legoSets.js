@@ -1,177 +1,180 @@
 require('dotenv').config(); // Load environment variables
-require('pg');
-const Sequelize = require('sequelize'); // Import Sequelize
+const { Sequelize, DataTypes, Op } = require('sequelize');
 
-// Set up Sequelize to point to our Postgres database
-const sequelize = new Sequelize(
-  process.env.PGDATABASE, 
-  process.env.PGUSER,     
-  process.env.PGPASSWORD, 
-  {
-    host: process.env.PGHOST, 
-    dialect: 'postgres',     
-    port: 5432,              
-    dialectOptions: {
-      ssl: { rejectUnauthorized: false }, 
+// Use DATABASE_URL or throw an error if not defined
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL is not defined. Please check your .env file.');
+}
+
+// Initialize Sequelize with the connection string
+const sequelize = new Sequelize(databaseUrl, {
+  dialect: 'postgres',
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false, // Disable strict SSL validation for Neon
     },
-  }
-);
+  },
+});
 
 // Test the connection
 sequelize
   .authenticate()
   .then(() => {
-    console.log('Connection has been established successfully.');
+    console.log('Database connection established successfully.');
   })
   .catch((err) => {
-    console.error('Unable to connect to the database:', err);
+    console.error('Unable to connect to the database:', err.message);
+    process.exit(1);
   });
 
-// Theme model
-const Theme = sequelize.define('Theme', {
-  id: {
-    type: Sequelize.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
+// Define the Theme model
+const Theme = sequelize.define(
+  'Theme',
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
   },
-  name: {
-    type: Sequelize.STRING,
-  },
-}, {
-  timestamps: false, // Disable createdAt and updatedAt
-});
+  {
+    timestamps: false,
+  }
+);
 
-// Set model
-const Set = sequelize.define('Set', {
-  set_num: {
-    type: Sequelize.STRING,
-    primaryKey: true,
+// Define the Set model
+const Set = sequelize.define(
+  'Set',
+  {
+    set_num: {
+      type: DataTypes.STRING,
+      primaryKey: true,
+    },
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    year: {
+      type: DataTypes.INTEGER,
+    },
+    num_parts: {
+      type: DataTypes.INTEGER,
+    },
+    theme_id: {
+      type: DataTypes.INTEGER,
+    },
+    img_url: {
+      type: DataTypes.STRING,
+    },
   },
-  name: {
-    type: Sequelize.STRING,
-  },
-  year: {
-    type: Sequelize.INTEGER,
-  },
-  num_parts: {
-    type: Sequelize.INTEGER,
-  },
-  theme_id: {
-    type: Sequelize.INTEGER,
-  },
-  img_url: {
-    type: Sequelize.STRING,
-  },
-}, {
-  timestamps: false, // Disable createdAt and updatedAt
-});
+  {
+    timestamps: false,
+  }
+);
 
-// Define association
+// Define associations
 Set.belongsTo(Theme, { foreignKey: 'theme_id' });
 
-
-// **Define the initialize function**
-function initialize() {
-  return sequelize.sync() 
-    .then(() => {
-      return "Database initialized successfully."; 
-    })
-    .catch((err) => {
-      return Promise.reject(`Failed to initialize database: ${err.message}`); 
-    });
+// Initialize the database
+async function initialize() {
+  try {
+    await sequelize.sync();
+    console.log('Database initialized successfully.');
+    return 'Database initialized successfully.';
+  } catch (err) {
+    console.error('Failed to initialize database:', err.message);
+    throw new Error(`Failed to initialize database: ${err.message}`);
+  }
 }
 
 // Function to get all sets
-function getAllSets() {
-  return Set.findAll({ include: [Theme] })
-    .then((sets) => sets)
-    .catch((err) => Promise.reject(`Failed to retrieve sets: ${err.message}`));
+async function getAllSets() {
+  try {
+    const sets = await Set.findAll({ include: [Theme] });
+    return sets;
+  } catch (err) {
+    throw new Error(`Failed to retrieve sets: ${err.message}`);
+  }
 }
 
 // Function to get a specific set by set_num
-function getSetByNum(setNum) {
-  return Set.findOne({
-    where: { set_num: setNum },
-    include: [Theme],
-  })
-    .then((set) => {
-      if (set) return set;
-      throw new Error("Unable to find requested set");
-    })
-    .catch((err) => Promise.reject(`Failed to retrieve set: ${err.message}`));
-}
-
-// Function to get sets by theme name
-function getSetsByTheme(theme) {
-  return Set.findAll({
-    include: [Theme],
-    where: {
-      '$Theme.name$': {
-        [Sequelize.Op.iLike]: `%${theme}%`, 
-      },
-    },
-  })
-    .then((sets) => {
-      if (sets.length > 0) return sets;
-      throw new Error(`No sets found for theme: ${theme}`);
-    })
-    .catch((err) => Promise.reject(`Failed to retrieve sets: ${err.message}`));
-}
-
-//addSet
-function addSet(setData) {
-  return Set.create(setData)
-    .then(() => "Set added successfully.")
-    .catch((err) => Promise.reject(err.errors[0].message)); 
-}
-
-//getAllThemes
-function getAllThemes() {
-  return Theme.findAll()
-    .then((themes) => themes)
-    .catch((err) => Promise.reject(`Failed to retrieve themes: ${err.message}`));
-}
-
-//editSet
-function editSet(set_num, setData) {
-  return Set.update(setData, {
-    where: { set_num: set_num },
-  })
-    .then(() => "Set updated successfully.")
-    .catch((err) => Promise.reject(err.errors[0].message));
-}
-
-
-// deleteSet function to delete a set based on set_num
-function deleteSet(set_num) {
-  return Set.destroy({
-    where: { set_num: set_num } 
-  })
-    .then((deleted) => {
-      if (deleted === 0) {
-        return Promise.reject(`No set found with set_num: ${set_num}`); 
-      }
-      return "Set deleted successfully."; 
-    })
-    .catch((err) => {
-      return Promise.reject(err.errors ? err.errors[0].message : err.message);
+async function getSetByNum(setNum) {
+  try {
+    const set = await Set.findOne({
+      where: { set_num: setNum },
+      include: [Theme],
     });
+    if (!set) throw new Error('Set not found.');
+    return set;
+  } catch (err) {
+    throw new Error(`Failed to retrieve set: ${err.message}`);
+  }
 }
 
+// Function to get sets by theme
+async function getSetsByTheme(theme) {
+  try {
+    const sets = await Set.findAll({
+      include: [Theme],
+      where: {
+        '$Theme.name$': { [Op.iLike]: `%${theme}%` },
+      },
+    });
+    if (!sets.length) throw new Error(`No sets found for theme: ${theme}`);
+    return sets;
+  } catch (err) {
+    throw new Error(`Failed to retrieve sets: ${err.message}`);
+  }
+}
 
+// Function to add a set
+async function addSet(setData) {
+  try {
+    await Set.create(setData);
+    return 'Set added successfully.';
+  } catch (err) {
+    throw new Error(`Failed to add set: ${err.message}`);
+  }
+}
 
+// Function to get all themes
+async function getAllThemes() {
+  try {
+    const themes = await Theme.findAll();
+    return themes;
+  } catch (err) {
+    throw new Error(`Failed to retrieve themes: ${err.message}`);
+  }
+}
 
+// Function to edit a set
+async function editSet(set_num, setData) {
+  try {
+    const [updated] = await Set.update(setData, { where: { set_num } });
+    if (!updated) throw new Error('Set not found.');
+    return 'Set updated successfully.';
+  } catch (err) {
+    throw new Error(`Failed to update set: ${err.message}`);
+  }
+}
 
-// Testing initialize function
-initialize()
-  .then((message) => {
-    console.log(message); // Log the success message
-  })
-  .catch((error) => {
-    console.error("Error during initialization:", error); // Log the error if it fails
-  });
+// Function to delete a set
+async function deleteSet(set_num) {
+  try {
+    const deleted = await Set.destroy({ where: { set_num } });
+    if (!deleted) throw new Error('Set not found.');
+    return 'Set deleted successfully.';
+  } catch (err) {
+    throw new Error(`Failed to delete set: ${err.message}`);
+  }
+}
 
-// Export functions for use in other files
 module.exports = {
   initialize,
   getAllSets,
@@ -180,5 +183,5 @@ module.exports = {
   addSet,
   getAllThemes,
   editSet,
-  deleteSet
+  deleteSet,
 };
